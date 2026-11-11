@@ -17,10 +17,10 @@ class ConfigTests(unittest.TestCase):
         self.addCleanup(self.directory.cleanup)
         self.path = Path(self.directory.name) / "config.ini"
         self.values = {
-            "package": "requests",
-            "repository": "https://pypi.org/simple/",
+            "package": "demo",
+            "repository": "https://archive.ubuntu.com/ubuntu/dists/noble/main/binary-amd64/Packages.gz",
             "test_mode": "false",
-            "version": "2.32.3",
+            "version": "2:1.2.3-1ubuntu2~24.04.1",
             "ascii_tree": "true",
         }
 
@@ -31,6 +31,7 @@ class ConfigTests(unittest.TestCase):
             parser.write(target)
 
     def test_valid_config_and_cli_output(self):
+        self.values.update(repository=str(PROJECT_ROOT / "tests/fixtures/Packages"), test_mode="true")
         self.write_config()
         result = subprocess.run(
             [sys.executable, "-m", "src.main", str(self.path)],
@@ -38,8 +39,35 @@ class ConfigTests(unittest.TestCase):
             capture_output=True, text=True,
         )
         self.assertEqual(result.returncode, 0, result.stderr)
-        self.assertEqual(result.stdout, "".join(f"{key}={value}\n" for key, value in self.values.items()))
+        self.assertEqual(result.stdout, "init-helper (>= 1.0)\nlibrary-a (>= 2.0)\nlibrary-b:any | library-c\nlibrary-d\n")
         self.assertEqual(result.stderr, "")
+
+    def test_cli_package_without_dependencies(self):
+        self.values.update(
+            package="empty", version="1.0",
+            repository=str(PROJECT_ROOT / "tests/fixtures/Packages"), test_mode="true",
+        )
+        self.write_config()
+        result = subprocess.run(
+            [sys.executable, "-m", "src.main", str(self.path)],
+            cwd=PROJECT_ROOT, capture_output=True, text=True,
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(result.stdout, "Прямых зависимостей нет.\n")
+
+    def test_cli_missing_version(self):
+        self.values.update(
+            version="9.0", repository=str(PROJECT_ROOT / "tests/fixtures/Packages"), test_mode="true",
+        )
+        self.write_config()
+        result = subprocess.run(
+            [sys.executable, "-m", "src.main", str(self.path)],
+            cwd=PROJECT_ROOT, capture_output=True, text=True,
+        )
+        self.assertEqual(result.returncode, 1)
+        self.assertEqual(result.stdout, "")
+        self.assertIn("версии 9.0 не найден", result.stderr)
+        self.assertNotIn("Traceback", result.stderr)
 
     def test_invalid_values_for_every_parameter(self):
         invalid = {
@@ -71,8 +99,8 @@ class ConfigTests(unittest.TestCase):
             self.values[key] = original
 
     def test_local_repository_relative_to_config(self):
-        (self.path.parent / "repository.json").write_text("{}", encoding="utf-8")
-        self.values.update(repository="repository.json", test_mode="true")
+        (self.path.parent / "Packages").write_text("Package: demo\nVersion: 1.0\n", encoding="utf-8")
+        self.values.update(repository="Packages", test_mode="true")
         self.write_config()
         self.assertTrue(load_config(self.path)["test_mode"])
 

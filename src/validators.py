@@ -4,12 +4,8 @@ from urllib.parse import urlsplit
 
 from .errors import ConfigError
 
-PACKAGE_PATTERN = r"[A-Za-z0-9](?:[A-Za-z0-9._-]*[A-Za-z0-9])?"
-VERSION_PATTERN = (
-    r"(?:[0-9]+!)?[0-9]+(?:\.[0-9]+)*"
-    r"(?:(?:a|b|rc)[0-9]+)?(?:\.post[0-9]+)?(?:\.dev[0-9]+)?"
-    r"(?:\+[A-Za-z0-9]+(?:[._-][A-Za-z0-9]+)*)?"
-)
+PACKAGE_PATTERN = r"[a-z0-9][a-z0-9+.-]+"
+VERSION_PATTERN = r"(?:[0-9]+:)?[0-9][A-Za-z0-9.+~]*(?:[A-Za-z0-9.+~-]*-[A-Za-z0-9.+~]+)?"
 
 
 def validate_package(package):
@@ -26,7 +22,7 @@ def parse_boolean(section, key):
 
 def validate_version(version):
     if not re.fullmatch(VERSION_PATTERN, version):
-        raise ConfigError("Параметр version: недопустимая версия, пример: 1.2.3")
+        raise ConfigError("Параметр version: недопустимая версия APT, пример: 5.2.21-2ubuntu4")
 
 
 def validate_repository_file(repository, config_path):

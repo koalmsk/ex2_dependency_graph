@@ -1,0 +1,23 @@
+Package: demo
+Version: 1.0-1ubuntu1
+Architecture: amd64
+Depends: old-library
+
+Package: demo
+Version: 2:1.2.3-1ubuntu2~24.04.1
+Architecture: amd64
+Pre-Depends: init-helper (>= 1.0)
+Depends: library-a (>= 2.0),
+ library-b:any | library-c, library-d
+Recommends: optional-tool
+Suggests: extra-tool
+
+Package: library-a
+Version: 2.0
+Architecture: amd64
+Depends: transitive-library
+
+Package: empty
+Version: 1.0
+Architecture: all
+Description: Package without dependencies
