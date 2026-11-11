@@ -1,25 +1,28 @@
 import gzip
-from http.client import HTTPException
 import lzma
+import zlib
+from http.client import HTTPException
 from pathlib import Path
 from urllib.error import URLError
 from urllib.request import urlopen
-import zlib
 
 from .errors import RepositoryError
 
 
-def read_repository(repository, test_mode, config_path):
+def load_repository(config, config_path):
+    repository = config["repository"]
     try:
-        if test_mode:
+        if config["test_mode"]:
             path = Path(repository)
             if not path.is_absolute():
                 path = Path(config_path).parent / path
-            return path.read_bytes()
-        with urlopen(repository, timeout=30) as response:
-            return response.read()
+            data = path.read_bytes()
+        else:
+            with urlopen(repository, timeout=30) as response:
+                data = response.read()
     except (OSError, ValueError, URLError, HTTPException) as error:
         raise RepositoryError(f"Не удалось прочитать репозиторий: {error}") from error
+    return decode_repository(data)
 
 
 def decode_repository(data):
@@ -32,7 +35,3 @@ def decode_repository(data):
     except (OSError, EOFError, lzma.LZMAError, zlib.error, UnicodeError) as error:
         raise RepositoryError(f"Не удалось распаковать или декодировать индекс Packages: {error}") from error
 
-
-def load_repository(config, config_path):
-    data = read_repository(config["repository"], config["test_mode"], config_path)
-    return decode_repository(data)

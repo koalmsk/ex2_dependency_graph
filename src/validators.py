@@ -8,8 +8,9 @@ PACKAGE_PATTERN = r"[a-z0-9][a-z0-9+.-]+"
 VERSION_PATTERN = r"(?:[0-9]+:)?[0-9][A-Za-z0-9.+~]*(?:[A-Za-z0-9.+~-]*-[A-Za-z0-9.+~]+)?"
 
 
-def validate_package(package):
-    if not re.fullmatch(PACKAGE_PATTERN, package):
+def validate_package(package, test_mode=False):
+    pattern = r"[A-Z]+" if test_mode else PACKAGE_PATTERN
+    if not re.fullmatch(pattern, package):
         raise ConfigError("Параметр package: недопустимое имя пакета")
 
 
@@ -25,7 +26,10 @@ def validate_version(version):
         raise ConfigError("Параметр version: недопустимая версия APT, пример: 5.2.21-2ubuntu4")
 
 
-def validate_repository_file(repository, config_path):
+def validate_repository(repository, test_mode, config_path):
+    if not test_mode:
+        validate_repository_url(repository)
+        return
     repository_path = Path(repository)
     if not repository_path.is_absolute():
         repository_path = config_path.parent / repository_path
@@ -48,9 +52,3 @@ def validate_repository_url(repository):
     if not valid:
         raise ConfigError("Параметр repository: ожидается URL с протоколом http или https")
 
-
-def validate_repository(repository, test_mode, config_path):
-    if test_mode:
-        validate_repository_file(repository, config_path)
-    else:
-        validate_repository_url(repository)

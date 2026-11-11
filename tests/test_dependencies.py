@@ -2,8 +2,6 @@ import gzip
 from io import BytesIO
 import lzma
 from pathlib import Path
-import subprocess
-import sys
 import unittest
 from unittest.mock import patch
 from urllib.error import HTTPError, URLError
@@ -14,7 +12,6 @@ from src.repository import decode_repository, load_repository
 from src.validators import validate_package, validate_version
 
 
-PROJECT_ROOT = Path(__file__).resolve().parent.parent
 FIXTURES = Path(__file__).resolve().parent / "fixtures"
 VERSION = "2:1.2.3-1ubuntu2~24.04.1"
 EXPECTED = ["init-helper (>= 1.0)", "library-a (>= 2.0)", "library-b:any | library-c", "library-d"]
@@ -93,16 +90,6 @@ class DependencyTests(unittest.TestCase):
         for version in ("5.2.21-2ubuntu4", VERSION, "1.0+git20240101-0ubuntu1", "1.0~rc1", "1.0-beta-1"):
             with self.subTest(version=version):
                 validate_version(version)
-
-    def test_cli_with_local_repository(self):
-        result = subprocess.run(
-            [sys.executable, "-m", "src.main", str(FIXTURES / "config.ini")],
-            cwd=PROJECT_ROOT, capture_output=True, text=True,
-        )
-        self.assertEqual(result.returncode, 0, result.stderr)
-        self.assertEqual(result.stdout, "\n".join(EXPECTED) + "\n")
-        self.assertEqual(result.stderr, "")
-
 
 if __name__ == "__main__":
     unittest.main()

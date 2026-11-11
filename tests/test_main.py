@@ -30,43 +30,32 @@ class ConfigTests(unittest.TestCase):
         with self.path.open("w", encoding="utf-8") as target:
             parser.write(target)
 
-    def test_valid_config_and_cli_output(self):
-        self.values.update(repository=str(PROJECT_ROOT / "tests/fixtures/Packages"), test_mode="true")
-        self.write_config()
-        result = subprocess.run(
-            [sys.executable, "-m", "src.main", str(self.path)],
-            check=False, cwd=PROJECT_ROOT,
-            capture_output=True, text=True,
+    def run_cli(self, package):
+        self.values.update(
+            package=package, repository=str(PROJECT_ROOT / "tests/fixtures/graph.json"), test_mode="true",
         )
+        self.write_config()
+        return subprocess.run(
+            [sys.executable, "-m", "src.main", str(self.path)],
+            cwd=PROJECT_ROOT, capture_output=True, text=True,
+        )
+
+    def test_valid_config_and_cli_output(self):
+        result = self.run_cli("A")
         self.assertEqual(result.returncode, 0, result.stderr)
-        self.assertEqual(result.stdout, "init-helper (>= 1.0)\nlibrary-a (>= 2.0)\nlibrary-b:any | library-c\nlibrary-d\n")
+        self.assertEqual(result.stdout, "A -> B, C\nB -> D\nC -> D\nD ->\n")
         self.assertEqual(result.stderr, "")
 
     def test_cli_package_without_dependencies(self):
-        self.values.update(
-            package="empty", version="1.0",
-            repository=str(PROJECT_ROOT / "tests/fixtures/Packages"), test_mode="true",
-        )
-        self.write_config()
-        result = subprocess.run(
-            [sys.executable, "-m", "src.main", str(self.path)],
-            cwd=PROJECT_ROOT, capture_output=True, text=True,
-        )
+        result = self.run_cli("K")
         self.assertEqual(result.returncode, 0, result.stderr)
-        self.assertEqual(result.stdout, "Прямых зависимостей нет.\n")
+        self.assertEqual(result.stdout, "K ->\n")
 
-    def test_cli_missing_version(self):
-        self.values.update(
-            version="9.0", repository=str(PROJECT_ROOT / "tests/fixtures/Packages"), test_mode="true",
-        )
-        self.write_config()
-        result = subprocess.run(
-            [sys.executable, "-m", "src.main", str(self.path)],
-            cwd=PROJECT_ROOT, capture_output=True, text=True,
-        )
+    def test_cli_missing_test_package(self):
+        result = self.run_cli("Z")
         self.assertEqual(result.returncode, 1)
         self.assertEqual(result.stdout, "")
-        self.assertIn("версии 9.0 не найден", result.stderr)
+        self.assertIn("Пакет Z не найден", result.stderr)
         self.assertNotIn("Traceback", result.stderr)
 
     def test_invalid_values_for_every_parameter(self):
@@ -100,14 +89,14 @@ class ConfigTests(unittest.TestCase):
 
     def test_local_repository_relative_to_config(self):
         (self.path.parent / "Packages").write_text("Package: demo\nVersion: 1.0\n", encoding="utf-8")
-        self.values.update(repository="Packages", test_mode="true")
+        self.values.update(package="A", repository="Packages", test_mode="true")
         self.write_config()
         self.assertTrue(load_config(self.path)["test_mode"])
 
     def test_missing_repository_file_and_directory(self):
         for repository in ("missing.json", "."):
             with self.subTest(repository=repository):
-                self.values.update(repository=repository, test_mode="true")
+                self.values.update(package="A", repository=repository, test_mode="true")
                 self.write_config()
                 with self.assertRaisesRegex(ConfigError, "repository"):
                     load_config(self.path)
@@ -131,12 +120,7 @@ class ConfigTests(unittest.TestCase):
 
     def test_cli_error(self):
         self.values["ascii_tree"] = "maybe"
-        self.write_config()
-        result = subprocess.run(
-            [sys.executable, "-m", "src.main", str(self.path)],
-            check=False, cwd=PROJECT_ROOT,
-            capture_output=True, text=True,
-        )
+        result = self.run_cli("A")
         self.assertEqual(result.returncode, 1)
         self.assertEqual(result.stdout, "")
         self.assertIn("ascii_tree", result.stderr)
