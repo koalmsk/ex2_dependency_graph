@@ -20,5 +20,7 @@ def build_graph(package, get_dependencies):
     try:
         visit_level([package], get_dependencies, graph, {package})
     except RecursionError as error:
-        raise RepositoryError("Граф слишком глубокий для рекурсивного BFS") from error
+        raise RepositoryError(
+            "Граф слишком глубокий для рекурсивного BFS"
+        ) from error
     return graph

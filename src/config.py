@@ -18,7 +18,9 @@ def read_settings(path):
         with path.open(encoding="utf-8") as source:
             parser.read_file(source)
     except (OSError, UnicodeError, configparser.Error) as error:
-        raise ConfigError(f"Не удалось прочитать INI-файл {path}: {error}") from error
+        raise ConfigError(
+            f"Не удалось прочитать INI-файл {path}: {error}"
+        ) from error
     if "settings" not in parser:
         raise ConfigError("Отсутствует секция [settings]")
     return parser["settings"]

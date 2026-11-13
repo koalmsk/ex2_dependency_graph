@@ -6,7 +6,9 @@ from .errors import RepositoryError
 
 def dependency_names(fields):
     names = []
-    dependencies = ",".join(fields.get(key, "") for key in ("pre-depends", "depends"))
+    dependencies = ",".join(
+        fields.get(key, "") for key in ("pre-depends", "depends")
+    )
     for alternative in re.split(r"[,|]", dependencies):
         if not alternative.strip():
             continue
@@ -22,7 +24,9 @@ def index_packages(text):
     providers = {}
     for fields in parse_packages(text):
         if not fields.get("package") or not fields.get("version"):
-            raise RepositoryError("Некорректный индекс Packages: отсутствует Package или Version")
+            raise RepositoryError(
+                "Некорректный индекс Packages: отсутствует Package или Version"
+            )
         name = fields["package"]
         packages.setdefault(name, fields)
         for provided in fields.get("provides", "").split(","):
@@ -42,6 +46,8 @@ def apt_dependency_reader(text, package, version):
             return dependency_names(packages[name])
         if name in providers:
             return providers[name]
-        raise RepositoryError(f"Пакет зависимости {name} отсутствует в индексе репозитория")
+        raise RepositoryError(
+            f"Пакет зависимости {name} отсутствует в индексе репозитория"
+        )
 
     return get_dependencies

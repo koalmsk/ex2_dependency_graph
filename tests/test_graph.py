@@ -22,7 +22,10 @@ FIXTURES = Path(__file__).resolve().parent / "fixtures"
 
 class GraphTests(unittest.TestCase):
     def test_bfs_visits_levels_and_expands_each_node_once(self):
-        repository = {"A": ["B", "C"], "B": ["D"], "C": ["D", "E"], "D": ["A"], "E": []}
+        repository = {
+            "A": ["B", "C"], "B": ["D"], "C": ["D", "E"],
+            "D": ["A"], "E": [],
+        }
         visited = []
 
         def dependencies(package):
@@ -34,10 +37,15 @@ class GraphTests(unittest.TestCase):
 
     def test_deduplicate_edges(self):
         repository = {"A": ["B", "B"], "B": []}
-        self.assertEqual(build_graph("A", repository.__getitem__), {"A": ["B"], "B": []})
+        self.assertEqual(
+            build_graph("A", repository.__getitem__), {"A": ["B"], "B": []}
+        )
 
     def test_test_repository_errors(self):
-        for text in ('not json', '[]', '{"a": []}', '{"А": []}', '{"A": "B"}', '{"A": [1]}', '{"A": ["B"]}'):
+        for text in (
+            'not json', '[]', '{"a": []}', '{"А": []}',
+            '{"A": "B"}', '{"A": [1]}', '{"A": ["B"]}',
+        ):
             with self.subTest(text=text):
                 with self.assertRaises(RepositoryError):
                     parse_test_repository(text)
@@ -72,7 +80,8 @@ class GraphTests(unittest.TestCase):
                         config.write(target)
                     result = subprocess.run(
                         [sys.executable, "-m", "src.main", str(path)],
-                        cwd=PROJECT_ROOT, capture_output=True, text=True, timeout=10,
+                        cwd=PROJECT_ROOT, capture_output=True,
+                        text=True, timeout=10,
                     )
                     self.assertEqual(result.returncode, 0, result.stderr)
                     self.assertEqual(result.stdout, expected)
@@ -81,7 +90,8 @@ class GraphTests(unittest.TestCase):
     def test_apt_transitive_dependencies_root_version_and_cycle(self):
         text = (
             "Package: app\nVersion: 1.0\nDepends: obsolete\n\n"
-            "Package: app\nVersion: 2.0\nDepends: lib-a (>= 1.0), lib-b:any | lib-c\n\n"
+            "Package: app\nVersion: 2.0\n"
+            "Depends: lib-a (>= 1.0), lib-b:any | lib-c\n\n"
             "Package: lib-a\nVersion: 1.0\nPre-Depends: common\n\n"
             "Package: lib-b\nVersion: 1.0\nDepends: common\n\n"
             "Package: lib-c\nVersion: 1.0\n\n"
@@ -90,9 +100,12 @@ class GraphTests(unittest.TestCase):
         graph = build_graph("app", apt_dependency_reader(text, "app", "2.0"))
         self.assertEqual(graph, {
             "app": ["lib-a", "lib-b", "lib-c"],
-            "lib-a": ["common"], "lib-b": ["common"], "lib-c": [], "common": ["app"],
+            "lib-a": ["common"], "lib-b": ["common"],
+            "lib-c": [], "common": ["app"],
         })
-        self.assertEqual(list(graph), ["app", "lib-a", "lib-b", "lib-c", "common"])
+        self.assertEqual(
+            list(graph), ["app", "lib-a", "lib-b", "lib-c", "common"]
+        )
         with self.assertRaisesRegex(RepositoryError, "версии 9.0"):
             apt_dependency_reader(text, "app", "9.0")
 
@@ -102,7 +115,10 @@ class GraphTests(unittest.TestCase):
             "Package: implementation\nVersion: 1.0\nProvides: virtual (= 1.0)\n"
         )
         graph = build_graph("app", apt_dependency_reader(text, "app", "1.0"))
-        self.assertEqual(graph, {"app": ["virtual"], "virtual": ["implementation"], "implementation": []})
+        self.assertEqual(graph, {
+            "app": ["virtual"], "virtual": ["implementation"],
+            "implementation": [],
+        })
 
     def test_missing_transitive_package_reports_error(self):
         text = "Package: app\nVersion: 1.0\nDepends: missing\n"
@@ -110,10 +126,18 @@ class GraphTests(unittest.TestCase):
             build_graph("app", apt_dependency_reader(text, "app", "1.0"))
 
     def test_real_repository_cli_path(self):
-        text = "Package: app\nVersion: 1.0\nDepends: lib-a\n\nPackage: lib-a\nVersion: 1.0\n"
-        config = {"package": "app", "version": "1.0", "test_mode": False, "ascii_tree": False}
+        text = (
+            "Package: app\nVersion: 1.0\nDepends: lib-a\n\n"
+            "Package: lib-a\nVersion: 1.0\n"
+        )
+        config = {
+            "package": "app", "version": "1.0",
+            "test_mode": False, "ascii_tree": False,
+        }
         output = StringIO()
-        with patch("sys.argv", ["main"]), patch("src.cli.load_config", return_value=config), patch("src.cli.load_repository", return_value=text):
+        with patch("sys.argv", ["main"]), patch(
+            "src.cli.load_config", return_value=config
+        ), patch("src.cli.load_repository", return_value=text):
             with redirect_stdout(output):
                 self.assertEqual(main(), 0)
         self.assertEqual(output.getvalue(), "app -> lib-a\nlib-a ->\n")
@@ -121,7 +145,12 @@ class GraphTests(unittest.TestCase):
     def test_missing_root_version_cli_error(self):
         config = {"package": "app", "version": "9.0", "test_mode": False}
         error = StringIO()
-        with patch("sys.argv", ["main"]), patch("src.cli.load_config", return_value=config), patch("src.cli.load_repository", return_value="Package: app\nVersion: 1.0\n"):
+        with patch("sys.argv", ["main"]), patch(
+            "src.cli.load_config", return_value=config
+        ), patch(
+            "src.cli.load_repository",
+            return_value="Package: app\nVersion: 1.0\n",
+        ):
             with redirect_stderr(error):
                 self.assertEqual(main(), 1)
         self.assertIn("версии 9.0 не найден", error.getvalue())

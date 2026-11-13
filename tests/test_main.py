@@ -12,13 +12,16 @@ PROJECT_ROOT = Path(__file__).resolve().parent.parent
 
 
 class ConfigTests(unittest.TestCase):
-    def setUp(self):
+    def set_up(self):
         self.directory = tempfile.TemporaryDirectory()
         self.addCleanup(self.directory.cleanup)
         self.path = Path(self.directory.name) / "config.ini"
         self.values = {
             "package": "demo",
-            "repository": "https://archive.ubuntu.com/ubuntu/dists/noble/main/binary-amd64/Packages.gz",
+            "repository": (
+                "https://archive.ubuntu.com/ubuntu/dists/noble/"
+                "main/binary-amd64/Packages.gz"
+            ),
             "test_mode": "false",
             "version": "2:1.2.3-1ubuntu2~24.04.1",
             "ascii_tree": "true",
@@ -32,7 +35,9 @@ class ConfigTests(unittest.TestCase):
 
     def run_cli(self, package):
         self.values.update(
-            package=package, repository=str(PROJECT_ROOT / "tests/fixtures/graph.json"), test_mode="true",
+            package=package,
+            repository=str(PROJECT_ROOT / "tests/fixtures/graph.json"),
+            test_mode="true",
         )
         self.write_config()
         return subprocess.run(
@@ -41,17 +46,20 @@ class ConfigTests(unittest.TestCase):
         )
 
     def test_valid_config_and_cli_output(self):
+        self.set_up()
         result = self.run_cli("A")
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertEqual(result.stdout, "A -> B, C\nB -> D\nC -> D\nD ->\n")
         self.assertEqual(result.stderr, "")
 
     def test_cli_package_without_dependencies(self):
+        self.set_up()
         result = self.run_cli("K")
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertEqual(result.stdout, "K ->\n")
 
     def test_cli_missing_test_package(self):
+        self.set_up()
         result = self.run_cli("Z")
         self.assertEqual(result.returncode, 1)
         self.assertEqual(result.stdout, "")
@@ -59,6 +67,7 @@ class ConfigTests(unittest.TestCase):
         self.assertNotIn("Traceback", result.stderr)
 
     def test_invalid_values_for_every_parameter(self):
+        self.set_up()
         invalid = {
             "package": "bad package!",
             "repository": "not-a-url",
@@ -76,6 +85,7 @@ class ConfigTests(unittest.TestCase):
                 self.values[key] = original
 
     def test_missing_and_empty_parameters(self):
+        self.set_up()
         for key in list(self.values):
             original = self.values.pop(key)
             for empty in (False, True):
@@ -88,21 +98,32 @@ class ConfigTests(unittest.TestCase):
             self.values[key] = original
 
     def test_local_repository_relative_to_config(self):
-        (self.path.parent / "Packages").write_text("Package: demo\nVersion: 1.0\n", encoding="utf-8")
+        self.set_up()
+        (self.path.parent / "Packages").write_text(
+            "Package: demo\nVersion: 1.0\n", encoding="utf-8"
+        )
         self.values.update(package="A", repository="Packages", test_mode="true")
         self.write_config()
         self.assertTrue(load_config(self.path)["test_mode"])
 
     def test_missing_repository_file_and_directory(self):
+        self.set_up()
         for repository in ("missing.json", "."):
             with self.subTest(repository=repository):
-                self.values.update(package="A", repository=repository, test_mode="true")
+                self.values.update(
+                    package="A", repository=repository, test_mode="true"
+                )
                 self.write_config()
                 with self.assertRaisesRegex(ConfigError, "repository"):
                     load_config(self.path)
 
     def test_invalid_urls(self):
-        for url in ("ftp://example.com", "https://", "https://example.com:wrong", "https://example.com:0", "https://[", "https://bad host"):
+        self.set_up()
+        for url in (
+            "ftp://example.com", "https://",
+            "https://example.com:wrong", "https://example.com:0",
+            "https://[", "https://bad host",
+        ):
             with self.subTest(url=url):
                 self.values["repository"] = url
                 self.write_config()
@@ -110,15 +131,20 @@ class ConfigTests(unittest.TestCase):
                     load_config(self.path)
 
     def test_file_errors(self):
+        self.set_up()
         with self.assertRaises(ConfigError):
             load_config(self.path)
-        for content in (b"not an ini", b"[other]\nvalue=1", b"[settings]\npackage=a\npackage=b", b"\xff"):
+        for content in (
+            b"not an ini", b"[other]\nvalue=1",
+            b"[settings]\npackage=a\npackage=b", b"\xff",
+        ):
             with self.subTest(content=content):
                 self.path.write_bytes(content)
                 with self.assertRaises(ConfigError):
                     load_config(self.path)
 
     def test_cli_error(self):
+        self.set_up()
         self.values["ascii_tree"] = "maybe"
         result = self.run_cli("A")
         self.assertEqual(result.returncode, 1)

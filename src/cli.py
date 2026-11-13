@@ -10,8 +10,15 @@ from .repository import load_repository
 
 
 def parse_arguments():
-    parser = argparse.ArgumentParser(description="Граф зависимостей пакета Ubuntu APT")
-    parser.add_argument("config", nargs="?", default="config.ini", help="путь к INI-файлу (по умолчанию config.ini)")
+    parser = argparse.ArgumentParser(
+        description="Граф зависимостей пакета Ubuntu APT"
+    )
+    parser.add_argument(
+        "config",
+        nargs="?",
+        default="config.ini",
+        help="путь к INI-файлу (по умолчанию config.ini)",
+    )
     return parser.parse_args()
 
 
@@ -26,9 +33,13 @@ def main():
         values = load_config(args.config)
         repository = load_repository(values, args.config)
         if values["test_mode"]:
-            get_dependencies = test_dependency_reader(repository, values["package"])
+            get_dependencies = test_dependency_reader(
+                repository, values["package"]
+            )
         else:
-            get_dependencies = apt_dependency_reader(repository, values["package"], values["version"])
+            get_dependencies = apt_dependency_reader(
+                repository, values["package"], values["version"]
+            )
         graph = build_graph(values["package"], get_dependencies)
     except (ConfigError, RepositoryError) as error:
         print(f"Ошибка: {error}", file=sys.stderr)
