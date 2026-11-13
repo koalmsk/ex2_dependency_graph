@@ -70,6 +70,7 @@ class GraphTests(unittest.TestCase):
         }
         config = configparser.ConfigParser()
         config.read(FIXTURES / "config.ini")
+        config["settings"]["load_order"] = "false"
         config["settings"]["repository"] = str(FIXTURES / "graph.json")
         with tempfile.TemporaryDirectory() as directory:
             path = Path(directory) / "config.ini"

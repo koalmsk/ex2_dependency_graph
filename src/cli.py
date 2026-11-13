@@ -4,6 +4,7 @@ import sys
 from .config import load_config
 from .apt_repository import apt_dependency_reader
 from .graph import build_graph
+from .order import get_load_order
 from .graph_repository import test_dependency_reader
 from .errors import ConfigError, RepositoryError
 from .repository import load_repository
@@ -41,8 +42,15 @@ def main():
                 repository, values["package"], values["version"]
             )
         graph = build_graph(values["package"], get_dependencies)
+        order = (
+            get_load_order(graph)
+            if values.get("load_order", False) else None
+        )
     except (ConfigError, RepositoryError) as error:
         print(f"Ошибка: {error}", file=sys.stderr)
         return 1
-    print_graph(graph)
+    if order is not None:
+        print(" -> ".join(order))
+    else:
+        print_graph(graph)
     return 0

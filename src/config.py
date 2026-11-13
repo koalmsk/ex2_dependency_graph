@@ -36,6 +36,10 @@ def load_config(path):
         values[key] = section[key].strip()
     for key in ("test_mode", "ascii_tree"):
         values[key] = parse_boolean(section, key)
+    values["load_order"] = (
+        parse_boolean(section, "load_order")
+        if "load_order" in section else False
+    )
     validate_package(values["package"], values["test_mode"])
     validate_version(values["version"])
     validate_repository(values["repository"], values["test_mode"], path)
